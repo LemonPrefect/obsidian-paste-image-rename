@@ -10,29 +10,30 @@
  * - [ ] add rules for moving matched images to destination folder
  */
 import {
-  App,
-  HeadingCache,
-  MarkdownView,
-  Modal,
-  Notice,
-  Plugin,
-  PluginSettingTab,
-  Setting,
-  TAbstractFile,
-  TFile,
+	App,
+	FileSystemAdapter,
+	HeadingCache,
+	MarkdownView,
+	Modal,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	TAbstractFile,
+	TFile,
 } from 'obsidian';
 
 import { ImageBatchRenameModal } from './batch';
 import { renderTemplate } from './template';
 import {
-  createElementTree,
-  DEBUG,
-  debugLog,
-  escapeRegExp,
-  lockInputMethodComposition,
-  NameObj,
-  path,
-  sanitizer,
+	createElementTree,
+	DEBUG,
+	debugLog,
+	escapeRegExp,
+	lockInputMethodComposition,
+	NameObj,
+	path,
+	sanitizer,
 } from './utils';
 
 interface PluginSettings {
@@ -137,7 +138,7 @@ export default class PasteImageRenamePlugin extends Plugin {
 			return
 		}
 
-		const { stem, newName, isMeaningful }= this.generateNewName(file, activeFile)
+		const { stem, newName, isMeaningful } = this.generateNewName(file, activeFile)
 		debugLog('generated newName:', newName, isMeaningful)
 
 		if (!isMeaningful || !autoRename) {
@@ -149,7 +150,7 @@ export default class PasteImageRenamePlugin extends Plugin {
 
 	async renameFile(file: TFile, inputNewName: string, sourcePath: string, replaceCurrentLine?: boolean) {
 		// deduplicate name
-		const { name:newName } = await this.deduplicateNewName(inputNewName, file)
+		const { name: newName } = await this.deduplicateNewName(inputNewName, file)
 		debugLog('deduplicated newName:', newName)
 		const originName = file.name
 
@@ -159,6 +160,9 @@ export default class PasteImageRenamePlugin extends Plugin {
 		// file system operation: rename the file
 		const newPath = path.join(file.parent.path, newName)
 		try {
+			const newBase = newPath.slice(0, -(path.basename(newPath).length))
+			if (!(await this.app.vault.adapter.exists(newBase, true)))
+				await this.app.vault.createFolder(newBase)
 			await this.app.fileManager.renameFile(file, newPath)
 		} catch (err) {
 			new Notice(`Failed to rename ${newName}: ${err}`)
@@ -189,8 +193,8 @@ export default class PasteImageRenamePlugin extends Plugin {
 		editor.transaction({
 			changes: [
 				{
-					from: {...cursor, ch: 0},
-					to: {...cursor, ch: line.length},
+					from: { ...cursor, ch: 0 },
+					to: { ...cursor, ch: line.length },
 					text: replacedLine,
 				}
 			]
@@ -250,7 +254,7 @@ export default class PasteImageRenamePlugin extends Plugin {
 			if (!m0) return
 
 			// rename
-			const { newName, isMeaningful }= this.generateNewName(file, activeFile)
+			const { newName, isMeaningful } = this.generateNewName(file, activeFile)
 			debugLog('generated newName:', newName, isMeaningful)
 			if (!isMeaningful) {
 				new Notice('Failed to batch rename images: the generated name is not meaningful')
@@ -591,7 +595,7 @@ class SettingTab extends PluginSettingTab {
 					this.plugin.settings.imageNamePattern = value;
 					await this.plugin.saveSettings();
 				}
-			));
+				));
 
 		new Setting(containerEl)
 			.setName('Duplicate number at start (or end)')
@@ -613,7 +617,7 @@ class SettingTab extends PluginSettingTab {
 					this.plugin.settings.dupNumberDelimiter = sanitizer.delimiter(value);
 					await this.plugin.saveSettings();
 				}
-			));
+				));
 
 		new Setting(containerEl)
 			.setName('Always add duplicate number')
@@ -635,7 +639,7 @@ class SettingTab extends PluginSettingTab {
 					this.plugin.settings.autoRename = value;
 					await this.plugin.saveSettings();
 				}
-			));
+				));
 
 		new Setting(containerEl)
 			.setName('Handle all attachments')
@@ -648,7 +652,7 @@ class SettingTab extends PluginSettingTab {
 					this.plugin.settings.handleAllAttachments = value;
 					await this.plugin.saveSettings();
 				}
-			));
+				));
 
 		new Setting(containerEl)
 			.setName('Exclude extension pattern')
@@ -662,7 +666,7 @@ class SettingTab extends PluginSettingTab {
 					this.plugin.settings.excludeExtensionPattern = value;
 					await this.plugin.saveSettings();
 				}
-			));
+				));
 
 		new Setting(containerEl)
 			.setName('Disable rename notice')
@@ -674,6 +678,6 @@ class SettingTab extends PluginSettingTab {
 					this.plugin.settings.disableRenameNotice = value;
 					await this.plugin.saveSettings();
 				}
-			));
+				));
 	}
 }
